@@ -1,4 +1,4 @@
-# Coordinate scan 
+# Quantum calculation 
 
 ## Overview 
 
