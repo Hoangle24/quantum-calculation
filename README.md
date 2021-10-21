@@ -6,8 +6,4 @@ Over the past decade, organic semiconductors based on a system of polyaromatic h
 
 Even though the benefit of organic semiconductors seems quite obvious and the market demand for these materials continues to skyrocket, there is still an ongoing effort to gain a deeper understanding of their solid-state order as well as their electronic properties. Because organic semiconductors like fullerene, pentacene, and perylene depend greatly on the non-covalent interaction between the molecules, their solid-state order can vary greatly with different growth conditions. Therefore, a good understanding to the optimal solid state configuration is very crucial when it comes to engineering these materials.
 
-
-
-and is somewhat unpredictable. This research addresses this problem by simply adding side-chains to the original molecules to disrupt some of the non-covalent interactions and improve the solid-state order. With countless side-chain options, synthesizing and experimenting on the derivatives can be both time-consuming and very expensive. Therefore, running a computer simulation to find the most potential candidates to synthesize is essential to make this project feasible. 
-
 The content presented on this Github directory is a part of my continuing project aimed to develop a program to perform quantum mechanical calculations on organic semiconductors to search for the most potential molecules with the high solid-state order and good electronic properties (e.g. HOMO-LUMO energy gap, electron coupling value, and electron mobility). The project python as its primary programming language, but MATLAB was also utilized to give a better visualization of the calculated data.
