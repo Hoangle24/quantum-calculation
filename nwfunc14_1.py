@@ -452,10 +452,19 @@ def greedyprocess (greedyfolder,exc_num=10):
     newfile = sortfile.sort_values (['x-dis','y-dis','z-dis']).to_csv(index=False)
     with open (saved_file,'w',newline='') as nsfile:
         nsfile.write(newfile)
+        
 def core_partition (compute_cores):
+    '''Wrapper
+    This second degree wrapper function will divide up all files in the current working directory evenly and place each group into a subfolder. Subsequently, 
+    the function calls a bash shell cript that would import all files in each subfolder into the NWChem sodtware to perform the calculation through the 
+    secured file transfer protocol (sftp). To add this functionality to any other generator function that would generate files in a certain cwd, place a
+    line '@core_partition(compute_cores)' before that function.
+    Input: 
+        compute_cores (integer): The number of subfolders.
+    '''
     def inner (func):     
         def wrapper (*args,**kwargs):
-            di = func (*args,*kwargs)        
+            di = func (*args,**kwargs)        
             all_files = glob.glob (os.path.join(di,'*'))
             file_count = len (all_files)
             folder_capacity= math.ceil (file_count/compute_cores)
@@ -554,11 +563,6 @@ def rotation_scan (File_name,Folder,xstart,xstop,ystart,ystop,zstart,zstop,xyzsp
                         raise NameError('FileType={}: unrecognized file format'.format(FileType,FileType))
                     file_count+=1
     return di
-
-
-
-#sp.run ('cd /pscratch/anthony_uksr/hmle231/NWchem/calculation_data/{}/{}; sbatch $HOME/scripts/nwcbatch.sh'.format (Folder,sub), shell=True)
- #       print (os.listdir(subfolder))
 
 def core_process_rotation (folder,exc_num=10):
     '''This function extracts the data from all log files in the input folder'''
@@ -659,181 +663,4 @@ def main_folder_process (Folder,rotation=True,exc_num=10):
     with open (saved_file,'w',newline='') as nsfile:
         nsfile.write(newfile)
     return (MO)
-
-
-
-
-
-
-###############################################################################################################################################
-    #Temporary code for quick scan of gamma. Need modification later 
-
-@core_partition(10)
-def gamma_scan (File_name,Folder,xstart,xstop,ystart,ystop,zstart,zstop,xyzspace,tstart, tstop, aspace, FileType='nw'):
-    compound = re.search (r'(?P<mol>\w*-?\w*)\.xyz',File_name).group('mol')
-    di = os.path.join(NWchem,'calculation_data',Folder) #Folder directory  
-    #create the Folder path
-    if os.path.exists(di):
-        shutil.rmtree(di)
-    os.mkdir(di)
-    #generate molecule coordinate 
-    originalFilePath = os.path.join (NWchem,'original_xyz_file',File_name)
-    molecule0 = starting_molecule(originalFilePath).get_coordinate()
-    def num (start,stop,space):
-        return math.floor ((stop-start)/space)+1
-    file_count = 0
-    for i in range (num(tstart,tstop,aspace)):
-        for j in range (num(xstart, xstop,xyzspace)):
-            for k in range (num(ystart, ystop,xyzspace)):
-                for l in range (num(zstart, zstop,xyzspace)):
-                    molecule1 = starting_molecule(originalFilePath).rotate(0,gamma=tstart+aspace*i)
-                    file_ij = '{}_x{}_y{}_z{}_gamma{}'.format(compound,round(xstart+xyzspace*j,3),round(ystart+xyzspace*k,3),round (zstart+xyzspace*l,3),tstart+aspace*i)
-                    file_ij = os.path.join(di,file_ij)
-                    if FileType =='xyz':
-                        write_file_xyz(file_ij,molecule0, molecule1,xstart+xyzspace*j,ystart+xyzspace*k,zstart+xyzspace*l+1.5*math.sin((tstart+aspace*i)*np.pi/180))
-                    elif FileType == 'nw':
-                        write_file_nw(file_ij,molecule0, molecule1,xstart+xyzspace*j,ystart+xyzspace*k,zstart+xyzspace*l+1.5*math.sin((tstart+aspace*i)*np.pi/180))
-                    else:
-                        raise NameError('FileType={}: unrecognized file format'.format(FileType,FileType))
-                    file_count+=1
-    return di
-
-
-def core_process_gamma (folder,exc_num=10):
-    '''This function extracts the data from all log files in the input folder'''
-    log_path = os.path.join (folder,'*.log')
-    log_files = glob.glob (log_path)
-    pattern = r'(?P<mol>\w*-?\w*)_x(?P<xdis>\d*\.\d+)_y(?P<ydis>\d*\.\d+)_z(?P<zdis>\d*\.\d+)_gamma(?P<theta>\d*\.?\d*).log'
-    numfiles = len (log_files)
-    xdis = np.zeros(numfiles)
-    ydis = np.zeros(numfiles)
-    zdis = np.zeros(numfiles)
-    theta = np.zeros(numfiles)
-    mo = np.zeros ([match_range*2, numfiles])
-    excited_states = np.zeros([exc_num,numfiles])
-    osc_strength =  np.zeros([exc_num,numfiles])
-    error_files = []  
-    for i,file in enumerate(log_files):
-        x,y,z,the,molecule = re.search (pattern,file).group('xdis','ydis','zdis','theta','mol')
-        holu = load_mo_data (file)
-        exc =  [k[0] for k in load_excited_states(file)]
-        if exc == []:
-            print ('Potential error in file: {}_x{}_y{}_z{}_gamma{}.log'.format (molecule,x,y,z,theta))            
-            error_files.append (i)
-        else:
-            osc = [k[1] for k in load_excited_states(file)]
-            excited_states[:,i] = exc
-            osc_strength[:,i] = osc
-        #mo[:,i],xdis[i],ydis[i],zdis[i],theta[i] = (holu,x,y,z,the)
-        theta[i] = the
-        mo[:,i] = holu
-        xdis[i] = x
-        ydis[i] = y 
-        zdis[i] = z 
-    return (xdis,ydis,zdis,theta,mo,excited_states,osc_strength)
-
-def main_gamma_process (Folder,rotation=True,exc_num=10):
-    '''
-    This function will process all calculated .log files in any subfolders in the directory: /pscratch/anthony_uksr/hmle231/NWchem/calculation_data
-    and generate a csv file containing the result in the folder /pscratch/anthony_uksr/hmle231/NWchem/processed_csv.
-    Input:
-        Foler(string): Name of the folder containing the log files in /pscratch/anthony_uksr/hmle231/NWchem/calculation_data/
-        exc_num(integer): Number of excited states (default=10. DO NOT CHANGE UNLESS NECESSARY)
-    Return:
-    '''
-    NWchem = os.path.abspath(os.curdir)
-    folder_path = os.path.join(NWchem,'calculation_data',Folder,'*')
-    folders = glob.glob (folder_path)
-    xdis,ydis,zdis,theta=(np.array([]),)*4
-    MO = np.empty([match_range*2,1])
-    excited_states,osc_strength=(np.empty([exc_num,1]),)*2
-    
-    for subfolder in folders: 
-        if rotation==True:
-            (x,y,z,the,mo,exc,osc) = core_process_gamma (subfolder)
-            theta = np.concatenate((theta,the),axis=0)
-        else: 
-            (x,y,z,mo,exc,osc) = extract_folder_data (subfolder)
-            the = np.zeros(x.shape)
-            theta = np.concatenate((theta,the),axis=0)
-        xdis = np.concatenate((xdis,x),axis=0)
-        ydis = np.concatenate((ydis,y),axis=0)
-        zdis = np.concatenate((zdis,z),axis=0)
-        MO = np.concatenate((MO,mo),axis=1)
-        excited_states = np.concatenate((excited_states,exc),axis=1)
-        osc_strength = np.concatenate((osc_strength,osc),axis=1)
-    
-    MO = np.delete(MO,0,1) 
-    excited_states=np.delete (excited_states,0,1)
-    osc_strength=np.delete (osc_strength,0,1)
-      
-    #################################################################
-    #####   Writing the csv file from the extracted data
-    ##  HEADER
-    NAME = [i for i in range (2*match_range)]
-    for i in range (0,match_range):
-        if i == 0:
-            NAME[match_range-1] ='HOMO'
-            NAME[-match_range] ='LUMO'
-        else:
-            NAME[match_range-1-i]='HOMO-'+str(i)
-            NAME[-match_range+i]='LUMO+'+str(i)
-    HEADER = ['x-dis','y-dis','z-dis','gamma']+NAME
-    for i in range (1,11):
-        HEADER = HEADER + ['EXC{}'.format(i)]
-    for i in range (1,11):
-        HEADER = HEADER + ['PROB{}'.format(i)]
-    ##File_write
-    saved_file = os.path.join(NWchem,'processed_csv','{}.csv'.format(Folder))
-    with open (saved_file,'w', newline='') as csvfile:
-        writer = csv.writer (csvfile)
-        writer.writerow (HEADER)
-        for i in range(len(xdis)):
-            writer.writerow ([xdis[i],ydis[i],zdis[i],theta[i]]+
-                              [MO[j][i] for j in range(match_range*2)]+
-                              [excited_states[j][i] for j in range(exc_num)]+
-                              [osc_strength[j][i] for j in range(exc_num)])
-    sortfile = pandas.read_csv(saved_file)
-    newfile = sortfile.sort_values (['x-dis','y-dis','z-dis','gamma']).to_csv(index=False)
-    with open (saved_file,'w',newline='') as nsfile:
-        nsfile.write(newfile)
-    return (MO)
-
-
-
-#rotation_scan ('pentacene.xyz','pentacene_x0-0_y0.2-4_z3.5_theta0-90',0,0,0,4,3.5,3.5,0.2,0,90,5,'nw')
-#shifting_scan ('pentacene.xyz', 'core testing 2',0,1,0,4,3.5,3.5,0.2,'xyz')
-#
-
-
-# =============================================================================
-# NWchem = os.path.abspath(os.curdir)
-# di = os.path.join(NWchem,'calculation_data','weird bug test') #Folder directory  
-# #create the Folder path
-# if os.path.exists(di):
-#     shutil.rmtree(di)
-# os.mkdir(di)
-# #generate molecule coordinate 
-# originalFilePath = os.path.join (NWchem,'original_xyz_file','pentacene.xyz')
-# molecule0 = starting_molecule(originalFilePath).get_coordinate()
-# molecule1 = starting_molecule(originalFilePath).rotate(88)
-# #print(molecule1)
-# file_ij = os.path.join(di,'weird.-.')
-# write_file_xyz(file_ij,molecule0,molecule1,0,0,10)
-# =============================================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
