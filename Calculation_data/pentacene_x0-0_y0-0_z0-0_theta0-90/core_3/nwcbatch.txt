@@ -1,0 +1,4 @@
+starting pentacene_x0.0_y0.0_z3.5_theta45.nw
+finished pentacene_x0.0_y0.0_z3.5_theta45.nw
+starting pentacene_x0.0_y0.0_z3.5_theta55.nw
+finished pentacene_x0.0_y0.0_z3.5_theta55.nw
