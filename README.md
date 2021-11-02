@@ -10,4 +10,4 @@ The content presented on this Github directory is a part of my continuing projec
 
 ![image](https://user-images.githubusercontent.com/68453432/139360941-0ba74c18-964a-4750-b27f-9f4e67ca5008.png)
 
-
+For various reasons, the full code for the Python program and the generated data were not fully shown in this directory. The plots in the directory "Energy Plots" are examples of how the the result should appear at the end of the calculation process. 
